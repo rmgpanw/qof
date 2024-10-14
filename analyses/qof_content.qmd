@@ -1,0 +1,142 @@
+---
+title: "Quality and Outcomes Framework"
+subtitle: "Primary Care Domain reference sets (refsets)"
+categories: [Exploratory]
+description: Explore the QOF Primary Care Domain reference sets (refsets)
+author: Alasdair Warwick
+date: 2024-09-30
+editor: source
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup}
+library(targets)
+library(dplyr)
+library(reactable)
+library(flextable)
+library(stringr)
+
+withr::with_dir(here::here(), {
+  tar_load(pcd_refset)
+})
+
+reactable2 <- function(df) {
+  reactable::reactable(df,
+                       searchable = TRUE,
+                       filterable = TRUE,
+                       showPagination = TRUE,
+                       paginationType = "jump",
+                       pageSizeOptions = c(10, 25, 50, 100, 200),
+                       showPageSizeOptions = TRUE,
+                       resizable = TRUE)
+}
+```
+
+# Overview
+
+## Preview tables
+
+::: panel-tabset
+## Service mappings
+
+```{r}
+pcd_refset$PCD_SERVICE_FULL_NAME_MAPPINGS |>
+  flextable()
+```
+
+## Ruleset mappings
+
+```{r}
+pcd_refset$PCD_RULSET_FULL_NAME_MAPPINGS |>
+  reactable2()
+```
+
+## Output descriptions
+
+```{r}
+pcd_refset$PCD_SERVICE_OUTPUT_DESCRIPTIONS |>
+  reactable2()
+```
+:::
+
+## Content
+
+```{r}
+pcd_refset$PCD_REFSET_CONTENT |>
+  count(Service_and_Ruleset,
+        Cluster_description,
+        Cluster_ID) |>
+  reactable2()
+```
+
+## Content by output
+
+```{r}
+pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT |>
+  count(Output_ID,
+        Cluster_Description,
+        Cluster_ID) |>
+  reactable2()
+```
+
+## 'Content' and 'content by output' have some non-overlapping code sets
+
+```{r}
+list(
+  content = unique(pcd_refset$PCD_REFSET_CONTENT$Cluster_ID),
+  content_by_output = unique(pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT$Cluster_ID)
+) |>
+  purrr::map(as.character) |>
+  ggVennDiagram::ggVennDiagram()
+```
+
+## QOF codes for register outcomes
+
+```{r}
+qof_service_reg_output_ids <- pcd_refset$PCD_SERVICE_OUTPUT_DESCRIPTIONS |>
+  filter(Service_ID == "QOF") |>
+  filter(str_detect(Output_ID, "_REG$"))
+```
+
+:::{.column-page}
+::: panel-tabset
+## SCT Codes
+```{r}
+pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT |>
+  filter(Output_ID %in% !!qof_service_reg_output_ids$Output_ID) |>
+  reactable2()
+```
+
+## Output IDs
+
+```{r}
+qof_service_reg_output_ids |>
+  flextable() |>
+  autofit()
+```
+
+## Cluster IDs by Output ID
+
+```{r}
+pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT |>
+  filter(Output_ID %in% !!qof_service_reg_output_ids$Output_ID) |>
+  count(Output_ID, Cluster_ID) |>
+  left_join(qof_service_reg_output_ids |>
+              select(Output_ID,
+                     Output_Description),
+            by = "Output_ID") |>
+  tidyr::unite("Output",
+               Output_ID,
+               Output_Description, 
+               sep = "\n", 
+               remove = TRUE) |>
+  as_grouped_data("Output") |>
+  flextable() |>
+  autofit()
+```
+
+:::
+:::
