@@ -4,9 +4,13 @@ editor_options:
   chunk_output_type: console
 ---
 
-Welcome to my research website.
+## About QOF
 
-Additional analyses may be added by adding either `.qmd` or `.Rmd` notebooks in the `analysis` directory. These will be listed under the 'Analysis' tab when the website is rebuilt.
+The Quality and Outcomes Framework (QOF) is a system used in the NHS to financially incentivize General Practitioners (GPs) in the UK for providing high-quality care to patients. Introduced in 2004, QOF is a voluntary program that rewards practices based on their performance in key areas of patient care, such as chronic disease management, public health, and preventative measures.
+
+GPs accumulate points based on meeting specific indicators, which are tied to evidence-based best practices for conditions like diabetes, hypertension, asthma, and mental health. These indicators are tracked using QOF codes, which are clinical codes (often from the Read or SNOMED CT coding systems) assigned to specific activities or interventions. Accurate coding ensures that GPs receive financial remuneration based on the points earned for achieving set targets, encouraging better outcomes for patients and supporting data-driven improvements in healthcare delivery.
+
+## Analysis pipeline
 
 Re-run the analysis pipeline by running `targets::tar_make()`
 

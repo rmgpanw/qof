@@ -15,9 +15,11 @@ editor_options:
 ```{r setup}
 library(targets)
 library(dplyr)
+library(purrr)
 library(reactable)
 library(flextable)
 library(stringr)
+library(UpSetR)
 
 withr::with_dir(here::here(), {
   tar_load(pcd_refset)
@@ -36,6 +38,73 @@ reactable2 <- function(df) {
 ```
 
 # Overview
+
+**Key resources:**
+
+-   [Primary Care Domain Reference Set](https://digital.nhs.uk/data-and-information/data-collections-and-data-sets/data-collections/quality-and-outcomes-framework-qof/quality-and-outcome-framework-qof-business-rules/primary-care-domain-reference-set-portal): contains text files that include code lists for various QOF (and other) outcomes
+-   [QOF business rules](https://digital.nhs.uk/data-and-information/data-collections-and-data-sets/data-collections/quality-and-outcomes-framework-qof/business-rules/quality-and-outcomes-framework-qof-business-rules-v49-2024-25): details implementation of QOF codes
+
+**Terminology:**
+
+-   Code lists are grouped under "Cluster IDs" (e.g. `AST_CODE` for "Asthma diagnosis codes")
+-   Various Cluster IDs may contribute to one or more "Output IDs" (e.g. `AST_COD` & `ASTTRT_COD` & `ASTRES_COD` for Output ID `AST_REG`, "Asthma register")
+-   Output IDs fall under "Ruleset mappings", which fall under "Service mappings"
+
+```{mermaid}
+graph TD
+    A{{Service Mappings}}
+    B{{Ruleset Mappings}}
+    C{{Output IDs}}
+    D{{Cluster IDs}}
+
+    A --> B
+    B --> C
+    C --> D
+
+    subgraph Service Mappings
+        A1[QOF]
+        A2[Network Contract DES]
+        A3[CC Core GP Contract]
+    end
+
+    subgraph Ruleset Mappings
+        B1[Asthma]
+        B2[Dementia]
+        B3[Diabetes]
+    end
+
+    subgraph Output IDs
+        C1[AST_REG<br>Asthma register]
+        C2[DEM_REG<br>Dementia register]
+    end
+
+    subgraph Cluster IDs
+        D1[AST_COD<br>Asthma diagnosis codes]
+        D2[ASTTRT_COD<br>Asthma treatment codes]
+        D3[ASTRES_COD<br>Asthma review codes]
+        D4[DEM_COD<br>Dementia diagnosis codes]
+    end
+
+    A1 --> B1
+    A1 --> B2
+    A2 --> B3
+
+    B1 --> C1
+    B2 --> C2
+
+    C1 --> D1
+    C1 --> D2
+    C1 --> D3
+    C2 --> D4
+```
+
+**Registers:**
+
+-   GPs are required to maintain a register of patients with certain conditions (e.g. dementia, cancer, diabetes)
+-   See Output IDs with suffix `_REG` for code lists
+-   Output IDs (also termed "Indicator IDs" in the Business Rules word documents) typically apply to patient populations defined by these registers (e.g. `AST007`, `AST008` & `AST011` are all applied to population `AST_REG`)
+
+# General
 
 ## Preview tables
 
@@ -101,9 +170,10 @@ qof_service_reg_output_ids <- pcd_refset$PCD_SERVICE_OUTPUT_DESCRIPTIONS |>
   filter(str_detect(Output_ID, "_REG$"))
 ```
 
-:::{.column-page}
+::: column-page
 ::: panel-tabset
 ## SCT Codes
+
 ```{r}
 pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT |>
   filter(Output_ID %in% !!qof_service_reg_output_ids$Output_ID) |>
@@ -137,6 +207,36 @@ pcd_refset$PCD_REFSET_CONTENT_BY_OUTPUT |>
   flextable() |>
   autofit()
 ```
+:::
+:::
 
-:::
-:::
+# Examples
+
+## Dementia
+
+- Cluster ID `DEM_COD` contains all codes for dementia diagnosis
+- Other Cluster IDs pertaining to dementia diagnosis contain subsets of these codes: `DEMALZ_COD`, `DEMVASC_COD`, `DEMOTHER_COD`, `DEMFTEMP_COD` `DEMLEWY_COD`, `DEMMIX_COD` & `DEMOTHER_COD`
+
+```{r}
+pcd_refset$PCD_REFSET_CONTENT |>
+  filter(str_detect(Cluster_ID, "^DEM")) |>
+  count(Cluster_ID, Cluster_description) |>
+  arrange(desc(n)) |>
+  flextable()
+```
+
+```{r}
+#| out-width: 100%
+#| column: page
+pcd_refset$PCD_REFSET_CONTENT |>
+  filter(str_detect(Cluster_ID, "^DEM")) |>
+  pull(Cluster_ID) |>
+  unique() |>
+  set_names() |>
+  map(\(x) pcd_refset$PCD_REFSET_CONTENT |>
+        filter(Cluster_ID == !!x) |>
+        pull(SNOMED_code)) |>
+  fromList() |>
+  upset(order.by = "freq", 
+        nsets = 50)
+```

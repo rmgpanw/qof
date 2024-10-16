@@ -34,7 +34,7 @@ list(
       PCD_SERVICE_OUTPUT_DESCRIPTIONS = PCD_SERVICE_OUTPUT_DESCRIPTIONS
     ) |>
       purrr::map(readr::read_tsv,
-                 col_types = readr::cols("c")),
+                 col_types = readr::cols(.default = "c")),
   ),
 
   # Quarto -------------------------------------------------------
